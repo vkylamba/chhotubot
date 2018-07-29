@@ -9,6 +9,7 @@ import time
 
 from imutils.video import VideoStream
 from pyzbar import pyzbar
+from face_recog import FaceRecog
 
 
 class Camera(object):
@@ -17,6 +18,7 @@ class Camera(object):
         # initialize the video stream and allow the camera sensor to warm up
         print("[INFO] starting video stream...")
         self.vs = VideoStream(usePiCamera=False).start()
+        self.face_recog = FaceRecog()
 
     def adjust_gamma(self, image, gamma=0.5):
         # build a lookup table mapping the pixel values [0, 255] to
@@ -33,8 +35,8 @@ class Camera(object):
         if frame is None:
             return frame, []
 
-        frame = imutils.resize(frame, width=500)
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        rgb_frame = imutils.resize(frame, width=500)
+        frame = cv2.cvtColor(rgb_frame, cv2.COLOR_BGR2GRAY)
         # reduce brightness
         frame = self.adjust_gamma(frame)
 
@@ -61,7 +63,17 @@ class Camera(object):
             current_barcode.append(barcodeData)
             print('barcodedata: {}'.format(barcodeData))
 
-        # cv2.imshow("Scanner", frame)
+        faces = self.face_recog.process(rgb_frame, draw_on_frame=False)
+        for face in faces:
+            top, right, bottom, left = face.get('location')
+            name = face.get('name')
+            # Draw a box around the face
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+            # Draw a label with a name below the face
+            cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+            font = cv2.FONT_HERSHEY_DUPLEX
+            cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
         ret, jpeg = cv2.imencode('.jpg', frame)
 
